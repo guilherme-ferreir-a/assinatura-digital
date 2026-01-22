@@ -40,11 +40,21 @@ export const formatCurrency = (value: string): string => {
   });
 };
 
-export const formatDate = (value: string): string => {
-  const numbers = value.replace(/\D/g, '').slice(0, 8);
-  return numbers
-    .replace(/(\d{2})(\d)/, '$1/$2')
-    .replace(/(\d{2})(\d)/, '$1/$2');
+export const formatDate = (date: Date | string | undefined): string => {
+  if (!date) return '__/__/____';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+};
+
+export const formatDateLong = (date: Date | string | undefined): string => {
+  if (!date) return '____ de __________________ de ________';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('pt-BR', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric',
+    timeZone: 'UTC'
+  });
 };
 
 // Validators

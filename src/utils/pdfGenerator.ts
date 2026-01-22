@@ -100,7 +100,7 @@ export const generateContractPDF = async (data: ContractData) => {
   ]);
 
   // CLÁUSULA 5
-  let clause5Content = [
+  const clause5Content = [
     `5.1. O CONTRATANTE declara que, no endereço de desembarque: ${data.opcoes.pessoaResponsavelPresente === 'sempre' ? '(X) Haverá sempre pessoa responsável para receber o aluno' : '(X) Eventualmente não haverá pessoa responsável'}.`
   ];
   if (data.opcoes.pessoaResponsavelPresente === 'eventualmente') {
@@ -124,7 +124,7 @@ export const generateContractPDF = async (data: ContractData) => {
       '7.2. A partir do dia 15 (quinze) do mês em curso, caso o pagamento não tenha sido regularizado, será emitido boleto de cobrança com os acréscimos devidos e o serviço de transporte será suspenso até a efetiva quitação de todos os valores pendentes.'
   ]);
 
-  addClause('CLÁUSULA 8 – DO REAJUSTE', [
+  addClause('CLÁUSULA 8 – DO REAJuste', [
     '8.1. O valor da mensalidade poderá ser reajustado anualmente, a cada 12 (doze) meses contados da assinatura deste contrato, com base na variação do índice IPCA (ou outro que venha a substituí-lo) acumulado no período, ou por percentual compatível com o aumento de custos do serviço.',
     '8.2. O CONTRATADO comunicará ao CONTRATANTE o novo valor com antecedência mínima de 30 (trinta) dias da data em que o reajuste passar a vigorar.'
   ]);
