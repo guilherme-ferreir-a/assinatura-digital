@@ -37,7 +37,6 @@ const Index = () => {
     const loadContractorSignature = async () => {
       try {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
         img.onload = () => {
           const canvas = document.createElement('canvas');
           canvas.width = img.width;
