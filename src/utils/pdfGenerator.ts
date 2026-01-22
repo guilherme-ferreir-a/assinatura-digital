@@ -2,57 +2,63 @@ import jsPDF from 'jspdf';
 import { ContractData } from '@/types/contract';
 import { formatDate, formatDateLong } from './formatters';
 
+// ABNT-inspired constants
 const PAGE_MARGIN = 20;
-const LINE_HEIGHT = 5;
-const FONT_SIZE_NORMAL = 10;
-const FONT_SIZE_SMALL = 8;
+const FONT_SIZE_TITLE = 12;
+const FONT_SIZE_BODY = 12;
+const LINE_HEIGHT_FACTOR = 1.5;
 
 export const generateContractPDF = async (data: ContractData) => {
   const doc = new jsPDF();
   const page_width = doc.internal.pageSize.getWidth();
+  const usable_width = page_width - (2 * PAGE_MARGIN);
   let y = PAGE_MARGIN;
 
-  const addText = (text: string, size = FONT_SIZE_NORMAL, isBold = false, align: 'left' | 'center' | 'right' = 'left', customY?: number) => {
-    if (customY) y = customY;
-    if (y > doc.internal.pageSize.getHeight() - PAGE_MARGIN) {
+  const checkPageBreak = (neededHeight: number) => {
+    if (y + neededHeight > doc.internal.pageSize.getHeight() - PAGE_MARGIN) {
       doc.addPage();
       y = PAGE_MARGIN;
     }
-    doc.setFontSize(size);
-    doc.setFont(undefined, isBold ? 'bold' : 'normal');
-    
-    const options = { align };
-    if (align === 'center') {
-      doc.text(text, page_width / 2, y, options);
-    } else if (align === 'right') {
-      doc.text(text, page_width - PAGE_MARGIN, y, options);
-    } else {
-      doc.text(text, PAGE_MARGIN, y, options);
-    }
-    
-    y += LINE_HEIGHT;
   };
 
-  const addWrappedText = (text: string, size = FONT_SIZE_NORMAL, isBold = false) => {
-    doc.setFontSize(size);
+  const addWrappedText = (text: string, isBold = false, align: 'left' | 'center' | 'right' | 'justify' = 'justify') => {
     doc.setFont(undefined, isBold ? 'bold' : 'normal');
-    const splitText = doc.splitTextToSize(text, page_width - 2 * PAGE_MARGIN);
-    splitText.forEach((line: string) => {
-        addText(line);
-    });
+    const splitText = doc.splitTextToSize(text, usable_width);
+    const textHeight = doc.getTextDimensions(splitText).h;
+    checkPageBreak(textHeight);
+    doc.text(splitText, PAGE_MARGIN, y, { align, lineHeightFactor: LINE_HEIGHT_FACTOR });
+    y += textHeight;
   };
 
+  const addTitle = (text: string) => {
+    doc.setFontSize(FONT_SIZE_TITLE);
+    doc.setFont(undefined, 'bold');
+    const textHeight = doc.getTextDimensions(text).h;
+    checkPageBreak(textHeight);
+    doc.text(text, page_width / 2, y, { align: 'center' });
+    y += textHeight + 5; // Extra space after title
+  };
+
+  const addClauseTitle = (text: string) => {
+    doc.setFontSize(FONT_SIZE_BODY);
+    doc.setFont(undefined, 'bold');
+    const textHeight = doc.getTextDimensions(text).h;
+    checkPageBreak(textHeight);
+    doc.text(text, PAGE_MARGIN, y, { align: 'left' });
+    y += textHeight;
+  };
+
+  // --- Document Start ---
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(FONT_SIZE_BODY);
 
-  addText('CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE ESCOLAR', 12, true, 'center');
+  addTitle('CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE ESCOLAR');
   y += 5;
 
-  // CONTRATADO
-  addWrappedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`);
+  // PARTES
+  addWrappedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`, false, 'justify');
   y += 2;
-
-  // CONTRATANTE
-  addWrappedText(`CONTRATANTE: ${data.contratante.nome || '___________________________'}, CPF nº ${data.contratante.cpf || '_______________'}, endereço ${data.contratante.endereco || '______________________________________'}, telefone ${data.contratante.telefone || '_______________'}, e-mail ${data.contratante.email || '_______________'}.`);
+  addWrappedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`, false, 'justify');
   y += 5;
 
   addWrappedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
@@ -60,15 +66,15 @@ export const generateContractPDF = async (data: ContractData) => {
 
   // Helper para cláusulas
   const addClause = (title: string, content: string[]) => {
-    addText(title, 11, true);
+    addClauseTitle(title);
     content.forEach(p => addWrappedText(p));
     y += 5;
   };
 
-  // CLAUSES
+  // CLAUSES (Conteúdo omitido para brevidade, mas a formatação será aplicada)
   addClause('CLÁUSULA 1 – DO OBJETO', [
-    `1.1. O presente contrato tem por objeto a prestação de serviços de transporte escolar do aluno: Nome do aluno: ${data.aluno.nome || '___________________________'}, Data de nascimento: ${formatDate(data.aluno.dataNascimento)}, Escola: ${data.aluno.escola || '___________________________'}, Série/Turma: ${data.aluno.serieTurma || '_______________'}.`,
-    `1.2. O transporte será realizado entre o endereço residencial do aluno, situado à ${data.aluno.enderecoResidencial || '___________________________'}, e a escola acima indicada, bem como o trajeto de retorno, conforme regime contratado (${{
+    `1.1. O presente contrato tem por objeto a prestação de serviços de transporte escolar do aluno: Nome do aluno: ${data.aluno.nome}, Data de nascimento: ${formatDate(data.aluno.dataNascimento)}, Escola: ${data.aluno.escola}, Série/Turma: ${data.aluno.serieTurma}.`,
+    `1.2. O transporte será realizado entre o endereço residencial do aluno, situado à ${data.aluno.enderecoResidencial}, e a escola acima indicada, bem como o trajeto de retorno, conforme regime contratado (${{
       'ida-volta': 'ida e volta',
       'somente-ida': 'somente ida',
       'somente-volta': 'somente volta'
@@ -98,9 +104,8 @@ export const generateContractPDF = async (data: ContractData) => {
       '4.4. Indicar a pessoa responsável pelo recebimento do aluno no endereço de desembarque, assumindo a responsabilidade a partir do momento em que o aluno é entregue nesse local.',
       '4.5. Assumir integralmente a responsabilidade pelos danos causados pelo aluno ao veículo, a seus equipamentos ou a terceiros, na forma da CLÁUSULA 10.'
   ]);
-
-  // CLÁUSULA 5
-  const clause5Content = [
+  
+    const clause5Content = [
     `5.1. O CONTRATANTE declara que, no endereço de desembarque: ${data.opcoes.pessoaResponsavelPresente === 'sempre' ? '(X) Haverá sempre pessoa responsável para receber o aluno' : '(X) Eventualmente não haverá pessoa responsável'}.`
   ];
   if (data.opcoes.pessoaResponsavelPresente === 'eventualmente') {
@@ -113,6 +118,7 @@ export const generateContractPDF = async (data: ContractData) => {
   clause5Content.push('5.3. A partir do momento em que o aluno é desembarcado no endereço informado e, quando aplicável, entregue à pessoa responsável, encerra-se a responsabilidade do CONTRATADO.');
   addClause('CLÁUSULA 5 – DO RECEBIMENTO DO ALUNO', clause5Content);
 
+
   addClause('CLÁUSULA 6 – DO PREÇO E FORMA DE PAGAMENTO', [
     `6.1. Pelo serviço de transporte escolar, o CONTRATANTE pagará ao CONTRATADO o valor mensal integral de R$ ${data.pagamento.valorMensal || '_______'} (${data.pagamento.valorPorExtenso || '_______'}), por aluno, com vencimento todo dia 10 (dez) de cada mês.`,
     `6.2. O pagamento será efetuado mediante ${data.pagamento.formaPagamento === 'pix' ? 'PIX' : 'espécie'}, conforme combinado previamente entre as partes.`,
@@ -124,7 +130,7 @@ export const generateContractPDF = async (data: ContractData) => {
       '7.2. A partir do dia 15 (quinze) do mês em curso, caso o pagamento não tenha sido regularizado, será emitido boleto de cobrança com os acréscimos devidos e o serviço de transporte será suspenso até a efetiva quitação de todos os valores pendentes.'
   ]);
 
-  addClause('CLÁUSULA 8 – DO REAJuste', [
+  addClause('CLÁUSULA 8 – DO REAJUSTE', [
     '8.1. O valor da mensalidade poderá ser reajustado anualmente, a cada 12 (doze) meses contados da assinatura deste contrato, com base na variação do índice IPCA (ou outro que venha a substituí-lo) acumulado no período, ou por percentual compatível com o aumento de custos do serviço.',
     '8.2. O CONTRATADO comunicará ao CONTRATANTE o novo valor com antecedência mínima de 30 (trinta) dias da data em que o reajuste passar a vigorar.'
   ]);
@@ -160,35 +166,40 @@ export const generateContractPDF = async (data: ContractData) => {
   addClause('CLÁUSULA 14 – DO FORO', [
     '14.1. Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da Comarca de Caxias do Sul/RS, com renúncia a qualquer outro, por mais privilegiado que seja.'
   ]);
-  
+
+  y += 10;
+  addWrappedText('E, por estarem justos e contratados, firmam o presente instrumento em duas vias de igual teor e forma.', false, 'center');
   y += 5;
-  addText('E, por estarem justos e contratados, firmam o presente instrumento em duas vias de igual teor e forma.', FONT_SIZE_NORMAL, false, 'center');
-  y += 5;
-  addText(`Cidade: Caxias do Sul, RS, ${formatDateLong(data.vigencia.dataContrato)}.`, FONT_SIZE_NORMAL, false, 'center');
+  addWrappedText(`Cidade: Caxias do Sul, RS, ${formatDateLong(data.vigencia.dataContrato)}.`, false, 'center');
   y += 20;
 
-  const signatureX = (page_width / 2);
-  const signatureWidth = 70; // Largura da assinatura
-  const signatureHeight = 35; // Altura da assinatura
-  const signatureYStart = y;
+  // --- ASSINATURAS ---
+  const signatureWidth = 70;
+  const signatureHeight = 35;
+  const signatureX = (page_width - signatureWidth) / 2;
 
-  // --- CORREÇÃO APLICADA AQUI ---
-  // Adicionar a assinatura do CONTRATADO (imagem fixa)
+  checkPageBreak(signatureHeight + 30); // Space for one signature
+
   if (data.assinaturas.contratado) {
-    doc.addImage(data.assinaturas.contratado, 'JPEG', signatureX - (signatureWidth / 2), signatureYStart, signatureWidth, signatureHeight);
-    doc.text('_________________________', signatureX, signatureYStart + signatureHeight + 5, { align: 'center' });
-    doc.text(data.contratado.nome, signatureX, signatureYStart + signatureHeight + 10, { align: 'center' });
-    doc.text(`CNPJ: ${data.contratado.cnpj}`, signatureX, signatureYStart + signatureHeight + 15, { align: 'center' });
+    doc.addImage(data.assinaturas.contratado, 'JPEG', signatureX, y, signatureWidth, signatureHeight);
+    y += signatureHeight + 5;
+    addWrappedText('_________________________', false, 'center');
+    y -= 5; // Overlap the line
+    addWrappedText(data.contratado.nome, false, 'center');
+    addWrappedText(`CNPJ: ${data.contratado.cnpj}`, false, 'center');
   }
   
-  y = signatureYStart + signatureHeight + 30;
+  y += 15; // Space between signatures
 
-  // Adicionar a assinatura do CONTRATANTE (desenhada na tela)
+  checkPageBreak(signatureHeight + 30); // Space for the second signature
+
   if (data.assinaturas.contratante) {
-    doc.addImage(data.assinaturas.contratante, 'PNG', signatureX - (signatureWidth / 2), y, signatureWidth, signatureHeight);
-    doc.text('_________________________', signatureX, y + signatureHeight + 5, { align: 'center' });
-    doc.text(data.contratante.nome, signatureX, y + signatureHeight + 10, { align: 'center' });
-    doc.text(`CPF: ${data.contratante.cpf}`, signatureX, y + signatureHeight + 15, { align: 'center' });
+    doc.addImage(data.assinaturas.contratante, 'PNG', signatureX, y, signatureWidth, signatureHeight);
+    y += signatureHeight + 5;
+    addWrappedText('_________________________', false, 'center');
+    y -= 5; // Overlap the line
+    addWrappedText(data.contratante.nome, false, 'center');
+    addWrappedText(`CPF: ${data.contratante.cpf}`, false, 'center');
   }
 
   doc.save(`Contrato-${data.contratante.nome.replace(/ /g, '_')}.pdf`);
