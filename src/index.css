@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 15%;
+
+    --primary: 220 70% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 45 80% 55%;
+    --secondary-foreground: 220 30% 15%;
+
+    --muted: 210 20% 94%;
+    --muted-foreground: 220 15% 45%;
+
+    --accent: 45 75% 50%;
+    --accent-foreground: 220 30% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 220 70% 25%;
+
+    --radius: 0.75rem;
+
+    --success: 142 70% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 100% 50%;
+    --warning-foreground: 220 30% 15%;
+
+    --contract-bg: 35 30% 96%;
+    --contract-border: 35 25% 85%;
+
+    --step-inactive: 220 15% 75%;
+    --step-active: 220 70% 25%;
+    --step-complete: 142 70% 40%;
+
+    --signature-bg: 0 0% 100%;
+    --signature-border: 220 25% 80%;
+
+    --font-heading: 'Merriweather', Georgia, serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+
+    --shadow-soft: 0 4px 20px -4px hsl(220 30% 15% / 0.08);
+    --shadow-medium: 0 8px 30px -6px hsl(220 30% 15% / 0.12);
+    --shadow-strong: 0 12px 40px -8px hsl(220 30% 15% / 0.18);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer components {
+  .contract-paper {
+    @apply bg-card rounded-xl border border-border;
+    box-shadow: var(--shadow-medium);
+  }
+
+  .step-indicator {
+    @apply flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold transition-all duration-300;
+  }
+
+  .step-indicator-inactive {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  .step-indicator-active {
+    @apply bg-primary text-primary-foreground;
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.2);
+  }
+
+  .step-indicator-complete {
+    background-color: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+  }
+
+  .signature-canvas {
+    @apply w-full border-2 border-dashed rounded-lg cursor-crosshair touch-none;
+    border-color: hsl(var(--signature-border));
+    background-color: hsl(var(--signature-bg));
+    background-image: 
+      linear-gradient(90deg, transparent 79px, hsl(var(--destructive) / 0.3) 79px, hsl(var(--destructive) / 0.3) 81px, transparent 81px),
+      repeating-linear-gradient(0deg, transparent, transparent 31px, hsl(var(--border)) 31px, hsl(var(--border)) 32px);
+  }
+
+  .form-section {
+    @apply p-6 rounded-xl bg-muted/30 border border-border/50;
+  }
+
+  .input-label {
+    @apply block text-sm font-medium text-foreground mb-2;
+  }
+
+  .contract-title {
+    @apply text-2xl md:text-3xl font-bold text-primary text-center;
+    font-family: var(--font-heading);
+  }
+
+  .clause-title {
+    @apply text-lg font-bold text-primary mt-6 mb-3;
+    font-family: var(--font-heading);
+  }
+
+  .gradient-header {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(220 60% 35%) 100%);
+  }
+
+  .btn-primary-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(220 60% 30%) 100%);
+    @apply text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+
+  .btn-primary-gradient:hover {
+    background: linear-gradient(135deg, hsl(220 60% 30%) 0%, hsl(var(--primary)) 100%);
+  }
+
+  .btn-accent-gradient {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(45 85% 45%) 100%);
+    @apply text-accent-foreground shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+}
