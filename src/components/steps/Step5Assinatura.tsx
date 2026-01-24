@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { ContractData } from '@/types/contract';
 import SignaturePad, { SignaturePadRef } from '@/components/SignaturePad';
-import { Pen, Check, RotateCcw, Smartphone, X, RotateCw, FileDown } from 'lucide-react';
+import { Pen, Check, RotateCcw, Smartphone, X, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -134,7 +134,6 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
                   <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center justify-center gap-2"><Check className="w-5 h-5 text-green-500" /> Assinatura Salva</h3>
                   <div className="bg-white border rounded-lg p-2 max-w-sm mx-auto"><img src={data.assinaturas.contratante} alt="Sua assinatura" className="max-h-24 mx-auto"/></div>
                   <Button onClick={enterSigningMode} variant="outline" className="w-full mt-4 max-w-sm mx-auto">Assinar Novamente</Button>
-                  <Button onClick={onGeneratePDF} className="w-full mt-4 max-w-sm mx-auto text-lg py-6"><FileDown className="w-5 h-5 mr-2" /> Gerar Contrato em PDF</Button>
                 </div>
               ) : (
                 <div className="form-section">
@@ -158,11 +157,6 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2"><Pen className="w-5 h-5 text-primary" />Assinatura do Contratante</h3>
           <p className="text-sm text-muted-foreground mb-4">{data.contratante.nome || 'Nome não informado'}</p>
           <SignaturePad ref={signatureRefs.contratante} label="Assine aqui com o mouse" onSignatureChange={handleSignatureChange} error={errors['assinaturas.contratante']} />
-          {hasSignature && (
-             <div className="mt-6 text-center">
-                <Button onClick={onGeneratePDF} size="lg" className="text-lg py-7"><FileDown className="w-5 h-5 mr-3" /> Gerar Contrato em PDF</Button>
-            </div>
-          )}
       </div>
     </div>
   );
