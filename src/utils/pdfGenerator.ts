@@ -2,76 +2,66 @@ import jsPDF from 'jspdf';
 import { ContractData } from '@/types/contract';
 import { formatDate, formatDateLong } from './formatters';
 
-// ABNT-inspired constants
-const PAGE_MARGIN = 20;
-const FONT_SIZE_TITLE = 12;
-const FONT_SIZE_BODY = 12;
-const LINE_HEIGHT_FACTOR = 1.5;
-
 export const generateContractPDF = async (data: ContractData) => {
-  const doc = new jsPDF();
-  const page_width = doc.internal.pageSize.getWidth();
-  const usable_width = page_width - (2 * PAGE_MARGIN);
-  let y = PAGE_MARGIN;
+  // Use A4 size and millimeters for units, a more standard approach for documents
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
+  // Document constants
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20; // 20mm margin
+  const usableWidth = pageWidth - (margin * 2);
+  const FONT_SIZE = 12;
+  const LINE_SPACING = 7; // Approx 1.5 lines for 12pt font
+
+  let y = margin; // Initial Y position
+
+  // Helper to check for page breaks
   const checkPageBreak = (neededHeight: number) => {
-    if (y + neededHeight > doc.internal.pageSize.getHeight() - PAGE_MARGIN) {
+    if (y + neededHeight > pageHeight - margin) {
       doc.addPage();
-      y = PAGE_MARGIN;
+      y = margin;
     }
   };
 
-  const addWrappedText = (text: string, isBold = false, align: 'left' | 'center' | 'right' | 'justify' = 'justify') => {
-    doc.setFont(undefined, isBold ? 'bold' : 'normal');
-    const splitText = doc.splitTextToSize(text, usable_width);
-    const textHeight = doc.getTextDimensions(splitText).h;
-    checkPageBreak(textHeight);
-    doc.text(splitText, PAGE_MARGIN, y, { align, lineHeightFactor: LINE_HEIGHT_FACTOR });
-    y += textHeight;
-  };
+  // --- Document Title ---
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(FONT_SIZE + 2);
+  checkPageBreak(20);
+  doc.text('CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE ESCOLAR', pageWidth / 2, y, { align: 'center' });
+  y += 15;
 
-  const addTitle = (text: string) => {
-    doc.setFontSize(FONT_SIZE_TITLE);
-    doc.setFont(undefined, 'bold');
-    const textHeight = doc.getTextDimensions(text).h;
-    checkPageBreak(textHeight);
-    doc.text(text, page_width / 2, y, { align: 'center' });
-    y += textHeight + 5; // Extra space after title
-  };
-
-  const addClauseTitle = (text: string) => {
-    doc.setFontSize(FONT_SIZE_BODY);
-    doc.setFont(undefined, 'bold');
-    const textHeight = doc.getTextDimensions(text).h;
-    checkPageBreak(textHeight);
-    doc.text(text, PAGE_MARGIN, y, { align: 'left' });
-    y += textHeight;
-  };
-
-  // --- Document Start ---
+  // --- Main Body ---
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(FONT_SIZE_BODY);
+  doc.setFontSize(FONT_SIZE);
+  doc.setLineHeightFactor(1.5);
 
-  addTitle('CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE ESCOLAR');
-  y += 5;
-
-  // PARTES
-  addWrappedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`, false, 'justify');
-  y += 2;
-  addWrappedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`, false, 'justify');
-  y += 5;
-
-  addWrappedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
-  y += 5;
-
-  // Helper para cláusulas
-  const addClause = (title: string, content: string[]) => {
-    addClauseTitle(title);
-    content.forEach(p => addWrappedText(p));
-    y += 5;
+  const addJustifiedText = (text: string) => {
+    const splitText = doc.splitTextToSize(text, usableWidth);
+    const textHeight = splitText.length * LINE_SPACING;
+    checkPageBreak(textHeight);
+    doc.text(splitText, margin, y, { align: 'justify' });
+    y += textHeight;
   };
 
-  // CLAUSES (Conteúdo omitido para brevidade, mas a formatação será aplicada)
+  const addClause = (title: string, content: string[]) => {
+    checkPageBreak(LINE_SPACING * 2);
+    y += 5; // Extra space before clause
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, margin, y);
+    y += LINE_SPACING;
+    doc.setFont('helvetica', 'normal');
+    content.forEach(p => addJustifiedText(p));
+  };
+
+  // --- PARTIES ---
+  addJustifiedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`);
+  y += 5;
+  addJustifiedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`);
+  y += 5;
+  addJustifiedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
+
+  // --- CLAUSES ---
   addClause('CLÁUSULA 1 – DO OBJETO', [
     `1.1. O presente contrato tem por objeto a prestação de serviços de transporte escolar do aluno: Nome do aluno: ${data.aluno.nome}, Data de nascimento: ${formatDate(data.aluno.dataNascimento)}, Escola: ${data.aluno.escola}, Série/Turma: ${data.aluno.serieTurma}.`,
     `1.2. O transporte será realizado entre o endereço residencial do aluno, situado à ${data.aluno.enderecoResidencial}, e a escola acima indicada, bem como o trajeto de retorno, conforme regime contratado (${{
@@ -83,29 +73,29 @@ export const generateContractPDF = async (data: ContractData) => {
   ]);
 
   addClause('CLÁUSULA 2 – DO VEÍCULO E DO MOTORISTA', [
-      '2.1. O transporte será realizado em veículo devidamente autorizado para transporte escolar pelo órgão de trânsito competente.',
-      '2.2. O CONTRATADO declara que o veículo atende aos requisitos legais para transporte escolar, inclusive faixa identificadora, cintos de segurança em todos os assentos, equipamentos obrigatórios e vistorias em dia.',
-      '2.3. O serviço será realizado por motorista devidamente habilitado na categoria exigida, com curso específico para transporte escolar e demais requisitos previstos na legislação de trânsito.',
-      '2.4. O CONTRATADO poderá substituir o veículo ou o motorista, temporária ou definitivamente, desde que sejam mantidas as mesmas condições de segurança e regularidade, comunicando o CONTRATANTE sempre que possível.'
+    '2.1. O transporte será realizado em veículo devidamente autorizado para transporte escolar pelo órgão de trânsito competente.',
+    '2.2. O CONTRATADO declara que o veículo atende aos requisitos legais para transporte escolar, inclusive faixa identificadora, cintos de segurança em todos os assentos, equipamentos obrigatórios e vistorias em dia.',
+    '2.3. O serviço será realizado por motorista devidamente habilitado na categoria exigida, com curso específico para transporte escolar e demais requisitos previstos na legislação de trânsito.',
+    '2.4. O CONTRATADO poderá substituir o veículo ou o motorista, temporária ou definitivamente, desde que sejam mantidas as mesmas condições de segurança e regularidade, comunicando o CONTRATANTE sempre que possível.'
   ]);
 
   addClause('CLÁUSULA 3 – DAS OBRIGAÇÕES DO CONTRATADO', [
-      '3.1. Cumprir os horários aproximados de embarque e desembarque informados, admitidas pequenas variações em razão de trânsito, condições climáticas, obras, acidentes ou outros fatores alheios à sua vontade, o que não caracterizará descumprimento contratual.',
-      '3.2. Realizar embarque e desembarque em local que ofereça condições mínimas de segurança.',
-      '3.3. Manter o veículo em boas condições de uso, conservação, limpeza e segurança, realizando revisões e manutenções periódicas.',
-      '3.4. Exigir o uso do cinto de segurança e zelar pela disciplina dos alunos no interior do veículo, podendo adverti-los em caso de comportamentos inadequados.',
-      '3.5. Manter vigentes os seguros obrigatórios e, se contratado, seguro de acidentes pessoais e/ou responsabilidade civil, informando ao CONTRATANTE os dados básicos da apólice quando solicitado.'
+    '3.1. Cumprir os horários aproximados de embarque e desembarque informados, admitidas pequenas variações em razão de trânsito, condições climáticas, obras, acidentes ou outros fatores alheios à sua vontade, o que não caracterizará descumprimento contratual.',
+    '3.2. Realizar embarque e desembarque em local que ofereça condições mínimas de segurança.',
+    '3.3. Manter o veículo em boas condições de uso, conservação, limpeza e segurança, realizando revisões e manutenções periódicas.',
+    '3.4. Exigir o uso do cinto de segurança e zelar pela disciplina dos alunos no interior do veículo, podendo adverti-los em caso de comportamentos inadequados.',
+    '3.5. Manter vigentes os seguros obrigatórios e, se contratado, seguro de acidentes pessoais e/ou responsabilidade civil, informando ao CONTRATANTE os dados básicos da apólice quando solicitado.'
   ]);
 
   addClause('CLÁUSULA 4 – DAS OBRIGAÇÕES DO CONTRATANTE', [
-      '4.1. Garantir que o aluno esteja pronto no ponto de embarque, no horário combinado, sob pena de o motorista não ser obrigado a aguardar por período superior a 8 (oito) minutos, podendo seguir o trajeto normalmente sem retorno específico para aquele aluno.',
-      '4.2. Informar ao CONTRATADO, com antecedência mínima de 6 (seis) horas, sobre faltas previsíveis, viagens, mudanças de endereço ou telefone.',
-      '4.3. Manter atualizados os dados de contato e de saúde do aluno, informando eventuais necessidades especiais, restrições ou condições relevantes para o transporte.',
-      '4.4. Indicar a pessoa responsável pelo recebimento do aluno no endereço de desembarque, assumindo a responsabilidade a partir do momento em que o aluno é entregue nesse local.',
-      '4.5. Assumir integralmente a responsabilidade pelos danos causados pelo aluno ao veículo, a seus equipamentos ou a terceiros, na forma da CLÁUSULA 10.'
+    '4.1. Garantir que o aluno esteja pronto no ponto de embarque, no horário combinado, sob pena de o motorista não ser obrigado a aguardar por período superior a 8 (oito) minutos, podendo seguir o trajeto normalmente sem retorno específico para aquele aluno.',
+    '4.2. Informar ao CONTRATADO, com antecedência mínima de 6 (seis) horas, sobre faltas previsíveis, viagens, mudanças de endereço ou telefone.',
+    '4.3. Manter atualizados os dados de contato e de saúde do aluno, informando eventuais necessidades especiais, restrições ou condições relevantes para o transporte.',
+    '4.4. Indicar a pessoa responsável pelo recebimento do aluno no endereço de desembarque, assumindo a responsabilidade a partir do momento em que o aluno é entregue nesse local.',
+    '4.5. Assumir integralmente a responsabilidade pelos danos causados pelo aluno ao veículo, a seus equipamentos ou a terceiros, na forma da CLÁUSULA 10.'
   ]);
-  
-    const clause5Content = [
+
+  const clause5Content = [
     `5.1. O CONTRATANTE declara que, no endereço de desembarque: ${data.opcoes.pessoaResponsavelPresente === 'sempre' ? '(X) Haverá sempre pessoa responsável para receber o aluno' : '(X) Eventualmente não haverá pessoa responsável'}.`
   ];
   if (data.opcoes.pessoaResponsavelPresente === 'eventualmente') {
@@ -118,16 +108,15 @@ export const generateContractPDF = async (data: ContractData) => {
   clause5Content.push('5.3. A partir do momento em que o aluno é desembarcado no endereço informado e, quando aplicável, entregue à pessoa responsável, encerra-se a responsabilidade do CONTRATADO.');
   addClause('CLÁUSULA 5 – DO RECEBIMENTO DO ALUNO', clause5Content);
 
-
   addClause('CLÁUSULA 6 – DO PREÇO E FORMA DE PAGAMENTO', [
-    `6.1. Pelo serviço de transporte escolar, o CONTRATANTE pagará ao CONTRATADO o valor mensal integral de R$ ${data.pagamento.valorMensal || '_______'} (${data.pagamento.valorPorExtenso || '_______'}), por aluno, com vencimento todo dia 10 (dez) de cada mês.`,
+    `6.1. Pelo serviço de transporte escolar, o CONTRATANTE pagará ao CONTRATADO o valor mensal integral de R$ ${data.pagamento.valorMensal || '______'} (${data.pagamento.valorPorExtenso || '_______'}), por aluno, com vencimento todo dia 10 (dez) de cada mês.`,
     `6.2. O pagamento será efetuado mediante ${data.pagamento.formaPagamento === 'pix' ? 'PIX' : 'espécie'}, conforme combinado previamente entre as partes.`,
     '6.3. As mensalidades são devidas integralmente durante todo o período de vigência deste contrato. O valor do mês de fevereiro será calculado proporcionalmente aos dias letivos, correspondendo ao valor da mensalidade integral dividido por 21 (vinte e um) e multiplicado pelo número de dias de serviço efetivamente prestados naquele mês. Os demais meses, inclusive dezembro, serão cobrados integralmente.'
   ]);
 
   addClause('CLÁUSULA 7 – DO ATRASO NO PAGAMENTO', [
-      '7.1. Em caso de atraso no pagamento de qualquer parcela, incidirá sobre o valor devido juros moratórios de 2% (dois por cento) ao dia, a partir do dia seguinte ao vencimento, até a data do efetivo pagamento.',
-      '7.2. A partir do dia 15 (quinze) do mês em curso, caso o pagamento não tenha sido regularizado, será emitido boleto de cobrança com os acréscimos devidos e o serviço de transporte será suspenso até a efetiva quitação de todos os valores pendentes.'
+    '7.1. Em caso de atraso no pagamento de qualquer parcela, incidirá sobre o valor devido juros moratórios de 2% (dois por cento) ao dia, a partir do dia seguinte ao vencimento, até a data do efetivo pagamento.',
+    '7.2. A partir do dia 15 (quinze) do mês em curso, caso o pagamento não tenha sido regularizado, será emitido boleto de cobrança com os acréscimos devidos e o serviço de transporte será suspenso até a efetiva quitação de todos os valores pendentes.'
   ]);
 
   addClause('CLÁUSULA 8 – DO REAJUSTE', [
@@ -167,40 +156,41 @@ export const generateContractPDF = async (data: ContractData) => {
     '14.1. Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da Comarca de Caxias do Sul/RS, com renúncia a qualquer outro, por mais privilegiado que seja.'
   ]);
 
+  // --- DATE & SIGNATURES ---
+  checkPageBreak(50); // Check for enough space for date + one signature
   y += 10;
-  addWrappedText('E, por estarem justos e contratados, firmam o presente instrumento em duas vias de igual teor e forma.', false, 'center');
-  y += 5;
-  addWrappedText(`Cidade: Caxias do Sul, RS, ${formatDateLong(data.vigencia.dataContrato)}.`, false, 'center');
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Caxias do Sul, RS, ${formatDateLong(data.vigencia.dataContrato)}.`, pageWidth / 2, y, { align: 'center' });
   y += 20;
 
-  // --- ASSINATURAS ---
-  const signatureWidth = 70;
-  const signatureHeight = 35;
-  const signatureX = (page_width - signatureWidth) / 2;
+  const signatureWidth = 60;
+  const signatureHeight = 30;
+  const signatureX = (pageWidth - signatureWidth) / 2;
 
-  checkPageBreak(signatureHeight + 30); // Space for one signature
+  const addSignature = (signatureData: string, format: 'JPEG' | 'PNG', name: string, id: string) => {
+    // **THIS IS THE CRITICAL FIX**: Remove the base64 prefix before giving it to jsPDF
+    const base64Data = signatureData.split(',')[1];
+    if (!base64Data) return; // Don't try to add image if data is bad
 
+    checkPageBreak(signatureHeight + 20); // Check space for the full signature block
+    doc.addImage(base64Data, format, signatureX, y, signatureWidth, signatureHeight);
+    y += signatureHeight;
+    doc.line(margin + 30, y, pageWidth - margin - 30, y); // Draw line
+    y += 5;
+    doc.text(name, pageWidth / 2, y, { align: 'center' });
+    y += 5;
+    doc.text(id, pageWidth / 2, y, { align: 'center' });
+    y += 15; // Space after signature
+  };
+
+  // Add the signatures
   if (data.assinaturas.contratado) {
-    doc.addImage(data.assinaturas.contratado, 'JPEG', signatureX, y, signatureWidth, signatureHeight);
-    y += signatureHeight + 5;
-    addWrappedText('_________________________', false, 'center');
-    y -= 5; // Overlap the line
-    addWrappedText(data.contratado.nome, false, 'center');
-    addWrappedText(`CNPJ: ${data.contratado.cnpj}`, false, 'center');
+    addSignature(data.assinaturas.contratado, 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
   }
-  
-  y += 15; // Space between signatures
-
-  checkPageBreak(signatureHeight + 30); // Space for the second signature
-
   if (data.assinaturas.contratante) {
-    doc.addImage(data.assinaturas.contratante, 'PNG', signatureX, y, signatureWidth, signatureHeight);
-    y += signatureHeight + 5;
-    addWrappedText('_________________________', false, 'center');
-    y -= 5; // Overlap the line
-    addWrappedText(data.contratante.nome, false, 'center');
-    addWrappedText(`CPF: ${data.contratante.cpf}`, false, 'center');
+    addSignature(data.assinaturas.contratante, 'PNG', data.contratante.nome, `CPF: ${data.contratante.cpf}`);
   }
 
   doc.save(`Contrato-${data.contratante.nome.replace(/ /g, '_')}.pdf`);
 };
+
