@@ -2,6 +2,36 @@
 import jsPDF from 'jspdf';
 import { ContractData } from '@/types/contract';
 import { formatDate, formatDateLong } from './formatters';
+import contratadoSignatureImg from '@/assets/assinatura-contratado.jpeg';
+
+// Helper function to flatten a transparent PNG onto a white background
+const flattenSignature = (pngDataUrl: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Fill the canvas with a white background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Draw the original (transparent) image over the white background
+        ctx.drawImage(image, 0, 0);
+        // Get the new data URL as a JPEG image
+        resolve(canvas.toDataURL('image/jpeg', 1.0));
+      } else {
+        reject(new Error('Could not get canvas context'));
+      }
+    };
+    image.onerror = (error) => {
+      reject(error);
+    };
+    image.src = pngDataUrl;
+  });
+};
+
 
 export const generateContractPDF = async (data: ContractData) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -73,7 +103,7 @@ export const generateContractPDF = async (data: ContractData) => {
   y += 5;
   addJustifiedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
 
-  // Clauses... (content is the same, only the rendering function is changed)
+  // Clauses...
     addClause('CLÁUSULA 1 – DO OBJETO', [
     `1.1. O presente contrato tem por objeto a prestação de serviços de transporte escolar do aluno: Nome do aluno: ${data.aluno.nome}, Data de nascimento: ${formatDate(data.aluno.dataNascimento)}, Escola: ${data.aluno.escola}, Série/Turma: ${data.aluno.serieTurma}.`,
     `1.2. O transporte será realizado entre o endereço residencial do aluno, situado à ${data.aluno.enderecoResidencial}, e a escola acima indicada, bem como o trajeto de retorno, conforme regime contratado (${{
@@ -189,10 +219,13 @@ export const generateContractPDF = async (data: ContractData) => {
     y += 15;
   };
 
-  addSignature('src/assets/assinatura-contratado.jpeg', 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
+  // Add the static (imported) signature for the 'contratado'
+  addSignature(contratadoSignatureImg, 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
   
+  // Flatten the dynamic signature for the 'contratante' before adding it
   if (data.assinaturas.contratante) {
-    addSignature(data.assinaturas.contratante, 'PNG', data.contratante.nome, `CPF: ${data.contratante.cpf}`);
+    const flattenedSign = await flattenSignature(data.assinaturas.contratante);
+    addSignature(flattenedSign, 'JPEG', data.contratante.nome, `CPF: ${data.contratante.cpf}`);
   }
 
   doc.save(`Contrato-${data.contratante.nome.replace(/ /g, '_')}.pdf`);
