@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import { ContractData } from '@/types/contract';
 import { formatDate, formatDateLong } from './formatters';
@@ -34,7 +35,7 @@ export const generateContractPDF = async (data: ContractData) => {
   const addJustifiedText = (text: string) => {
     const lines = doc.splitTextToSize(text, usableWidth);
     checkPageBreak(lines.length * LINE_SPACING);
-    
+
     lines.forEach((line: string, index: number) => {
       if (index === lines.length - 1) {
         doc.text(line, margin, y);
@@ -177,13 +178,8 @@ export const generateContractPDF = async (data: ContractData) => {
   const signatureX = (pageWidth - signatureWidth) / 2;
 
   const addSignature = (signatureData: string, format: 'JPEG' | 'PNG', name: string, id: string) => {
-    const base64Data = signatureData.includes(',') ? signatureData.split(',')[1] : signatureData;
-    if (!base64Data) {
-      console.error(`Invalid signature data for ${name}`);
-      return;
-    }
     checkPageBreak(signatureHeight + 20);
-    doc.addImage(base64Data, format, signatureX, y, signatureWidth, signatureHeight);
+    doc.addImage(signatureData, format, signatureX, y, signatureWidth, signatureHeight);
     y += signatureHeight;
     doc.line(margin + 30, y, pageWidth - margin - 30, y);
     y += 5;
@@ -193,9 +189,7 @@ export const generateContractPDF = async (data: ContractData) => {
     y += 15;
   };
 
-  if (data.assinaturas.contratado) {
-      addSignature(data.assinaturas.contratado, 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
-  }
+  addSignature('src/assets/assinatura-contratado.jpeg', 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
   
   if (data.assinaturas.contratante) {
     addSignature(data.assinaturas.contratante, 'PNG', data.contratante.nome, `CPF: ${data.contratante.cpf}`);

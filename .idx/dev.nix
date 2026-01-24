@@ -8,6 +8,7 @@
     pkgs.nodejs_20
     pkgs.bun # Added bun for dependency management
     pkgs.gh
+    pkgs.git-lfs
   ];
 
   # Configuration for VS Code extensions and workspace settings.
