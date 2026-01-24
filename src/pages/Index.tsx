@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ContractData, initialContractData, CONTRATADO_FIXO } from '@/types/contract';
+import { ContractData, initialContractData } from '@/types/contract';
 import { generateContractPDF } from '@/utils/pdfGenerator';
 import StepIndicator from '@/components/StepIndicator';
 import { SignaturePadRef } from '@/components/SignaturePad';
@@ -9,10 +9,10 @@ import Step3Pagamento from '@/components/steps/Step3Pagamento';
 import Step4Preview from '@/components/steps/Step4Preview';
 import Step5Assinatura from '@/components/steps/Step5Assinatura';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, FileDown, Bus, Shield, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileDown, Bus, Shield, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateCPF, validateEmail, validatePhone, validateCurrency } from '@/utils/formatters';
-import assinaturaContratado from '@/assets/assinatura-contratado.jpeg';
+import assinaturaContratadoImg from '@/assets/assinatura-contratado.jpeg';
 
 const steps = [
   { id: 1, title: 'Contratante', description: 'Dados do responsável' },
@@ -27,22 +27,23 @@ const Index = () => {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [contractData, setContractData] = useState<ContractData>(initialContractData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isContractorSignatureLoaded, setIsContractorSignatureLoaded] = useState(false);
 
   const signatureRefs = {
     contratante: useRef<SignaturePadRef>(null),
   };
 
-  // Load contractor signature on mount
   useEffect(() => {
-    const loadContractorSignature = async () => {
-      try {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0);
+    const loadContractorSignature = () => {
+      const img = new Image();
+      img.src = assinaturaContratadoImg;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
           const base64 = canvas.toDataURL('image/jpeg');
           setContractData(prev => ({
             ...prev,
@@ -51,56 +52,35 @@ const Index = () => {
               contratado: base64,
             },
           }));
-        };
-        img.src = assinaturaContratado;
-      } catch (e) {
-        console.log('Error loading contractor signature');
-      }
+          setIsContractorSignatureLoaded(true);
+        }
+      };
+      img.onerror = () => {
+        toast.error('Falha ao carregar a assinatura do contratado.');
+        setIsContractorSignatureLoaded(false);
+      };
     };
     loadContractorSignature();
   }, []);
 
   const updateData = useCallback((section: keyof ContractData, field: string, value: string | boolean) => {
     if (section === 'declaracaoLeitura') {
-      setContractData(prev => ({
-        ...prev,
-        declaracaoLeitura: value as boolean,
-      }));
+      setContractData(prev => ({ ...prev, declaracaoLeitura: value as boolean }));
     } else {
-      setContractData(prev => ({
-        ...prev,
-        [section]: {
-          ...(prev[section] as Record<string, unknown>),
-          [field]: value,
-        },
-      }));
+      setContractData(prev => ({ ...prev, [section]: { ...(prev[section] as object), [field]: value } }));
     }
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[`${section}.${field}`];
-      return newErrors;
-    });
+    setErrors(prev => { const newErrors = { ...prev }; delete newErrors[`${section}.${field}`]; return newErrors; });
   }, []);
 
-  const updateSignature = useCallback((party: 'contratado' | 'contratante', signature: string) => {
-    setContractData(prev => ({
-      ...prev,
-      assinaturas: {
-        ...prev.assinaturas,
-        [party]: signature,
-      },
-    }));
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[`assinaturas.${party}`];
-      return newErrors;
-    });
+  const updateSignature = useCallback((party: 'contratante', signature: string) => {
+    setContractData(prev => ({ ...prev, assinaturas: { ...prev.assinaturas, [party]: signature } }));
+    setErrors(prev => { const newErrors = { ...prev }; delete newErrors[`assinaturas.${party}`]; return newErrors; });
   }, []);
 
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
-
-    switch (step) {
+    // Validation logic remains the same
+        switch (step) {
       case 1: // Contratante
         if (!contractData.contratante.nome.trim()) newErrors['contratante.nome'] = 'Nome é obrigatório';
         if (!contractData.contratante.cpf.trim()) newErrors['contratante.cpf'] = 'CPF é obrigatório';
@@ -132,13 +112,11 @@ const Index = () => {
         break;
 
       case 5: // Assinatura
-        // CORRECT VALIDATION: Check the state (the source of truth), not the ref.
         if (!contractData.assinaturas.contratante) {
           newErrors['assinaturas.contratante'] = 'Assinatura do contratante é obrigatória';
         }
         break;
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -146,9 +124,7 @@ const Index = () => {
   const handleNext = () => {
     if (validateStep(currentStep)) {
       if (currentStep < 5) {
-        if (!completedSteps.includes(currentStep)) {
-          setCompletedSteps(prev => [...prev, currentStep]);
-        }
+        setCompletedSteps(prev => [...prev, currentStep]);
         setCurrentStep(prev => prev + 1);
       }
     } else {
@@ -157,37 +133,30 @@ const Index = () => {
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
-    }
+    if (currentStep > 1) setCurrentStep(prev => prev - 1);
   };
 
   const handleGeneratePDF = async () => {
-    // The validation now correctly checks the state, so we can proceed.
     if (!validateStep(5)) {
       toast.error('Assinatura do contratante é obrigatória');
       return;
     }
-
-    // The `contractData` state is already up-to-date thanks to the `updateSignature` callback.
-    // No need to recapture the signature from the ref.
-
+    if (!isContractorSignatureLoaded) {
+        toast.error('A assinatura do contratado ainda está carregando, por favor aguarde.');
+        return;
+    }
     try {
-      // Pass the final, correct data directly to the PDF generator.
       await generateContractPDF(contractData);
-      toast.success('Contrato gerado com sucesso!', {
-        description: 'O PDF foi baixado automaticamente.',
-      });
+      toast.success('Contrato gerado com sucesso!');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Erro ao gerar o contrato', {
-        description: 'Por favor, tente novamente.',
-      });
+      toast.error('Erro ao gerar o contrato.');
     }
   };
 
   const renderStep = () => {
-    switch (currentStep) {
+    // Render logic remains the same
+        switch (currentStep) {
       case 1:
         return <Step1Contratante data={contractData} updateData={updateData} errors={errors} />;
       case 2:
@@ -213,7 +182,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="gradient-header text-primary-foreground py-6 px-4 shadow-medium">
+      {/* Header and other UI remains the same */}
+            <header className="gradient-header text-primary-foreground py-6 px-4 shadow-medium">
         <div className="container mx-auto max-w-4xl">
           <div className="flex items-center justify-center gap-3">
             <Bus className="w-8 h-8" />
@@ -267,10 +237,14 @@ const Index = () => {
           ) : (
             <Button
               onClick={handleGeneratePDF}
+              disabled={!isContractorSignatureLoaded} // Disable button while signature is loading
               className="w-full sm:w-auto btn-accent-gradient flex items-center gap-2 text-lg py-6"
             >
-              <FileDown className="w-5 h-5" />
-              Gerar Contrato em PDF
+              {!isContractorSignatureLoaded ? (
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Carregando Assinatura...</>
+              ) : (
+                <><FileDown className="w-5 h-5" /> Gerar Contrato em PDF</>
+              )}
             </Button>
           )}
         </div>

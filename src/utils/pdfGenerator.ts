@@ -5,17 +5,15 @@ import { formatDate, formatDateLong } from './formatters';
 export const generateContractPDF = async (data: ContractData) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-  // Document constants
   const pageHeight = doc.internal.pageSize.getHeight();
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20; // 20mm margin
+  const margin = 20;
   const usableWidth = pageWidth - (margin * 2);
   const FONT_SIZE = 12;
-  const LINE_SPACING = 7; // Approx 1.5 lines for 12pt font
+  const LINE_SPACING = 7;
 
-  let y = margin; // Initial Y position
+  let y = margin;
 
-  // Helper to check for page breaks
   const checkPageBreak = (neededHeight: number) => {
     if (y + neededHeight > pageHeight - margin) {
       doc.addPage();
@@ -23,44 +21,58 @@ export const generateContractPDF = async (data: ContractData) => {
     }
   };
 
-  // --- Document Title ---
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(FONT_SIZE + 2);
   checkPageBreak(20);
   doc.text('CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE TRANSPORTE ESCOLAR', pageWidth / 2, y, { align: 'center' });
   y += 15;
 
-  // --- Main Body ---
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(FONT_SIZE);
   doc.setLineHeightFactor(1.5);
 
-  const addWrappedText = (text: string) => {
-    const splitText = doc.splitTextToSize(text, usableWidth);
-    const textHeight = splitText.length * LINE_SPACING;
-    checkPageBreak(textHeight);
-    doc.text(splitText, margin, y, { align: 'left' });
-    y += textHeight;
+  const addJustifiedText = (text: string) => {
+    const lines = doc.splitTextToSize(text, usableWidth);
+    checkPageBreak(lines.length * LINE_SPACING);
+    
+    lines.forEach((line: string, index: number) => {
+      if (index === lines.length - 1) {
+        doc.text(line, margin, y);
+      } else {
+        const words = line.split(' ');
+        if (words.length > 1) {
+          const totalWordWidth = words.reduce((acc, word) => acc + doc.getStringUnitWidth(word) * doc.getFontSize() / doc.internal.scaleFactor, 0);
+          const spacing = (usableWidth - totalWordWidth) / (words.length - 1);
+          let currentX = margin;
+          words.forEach((word: string, i: number) => {
+            doc.text(word, currentX, y);
+            currentX += doc.getStringUnitWidth(word) * doc.getFontSize() / doc.internal.scaleFactor + spacing;
+          });
+        } else {
+          doc.text(line, margin, y);
+        }
+      }
+      y += LINE_SPACING;
+    });
   };
 
   const addClause = (title: string, content: string[]) => {
     checkPageBreak(LINE_SPACING * 2);
-    y += 5; // Extra space before clause
+    y += 5;
     doc.setFont('helvetica', 'bold');
     doc.text(title, margin, y);
     y += LINE_SPACING;
     doc.setFont('helvetica', 'normal');
-    content.forEach(p => addWrappedText(p));
+    content.forEach(p => addJustifiedText(p));
   };
 
-  // --- PARTIES ---
-  addWrappedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`);
+  addJustifiedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`);
   y += 5;
-  addWrappedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`);
+  addJustifiedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`);
   y += 5;
-  addWrappedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
+  addJustifiedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
 
-  // --- CLAUSES (Conteúdo omitido para brevidade) ---
+  // Clauses... (content is the same, only the rendering function is changed)
     addClause('CLÁUSULA 1 – DO OBJETO', [
     `1.1. O presente contrato tem por objeto a prestação de serviços de transporte escolar do aluno: Nome do aluno: ${data.aluno.nome}, Data de nascimento: ${formatDate(data.aluno.dataNascimento)}, Escola: ${data.aluno.escola}, Série/Turma: ${data.aluno.serieTurma}.`,
     `1.2. O transporte será realizado entre o endereço residencial do aluno, situado à ${data.aluno.enderecoResidencial}, e a escola acima indicada, bem como o trajeto de retorno, conforme regime contratado (${{
@@ -155,10 +167,8 @@ export const generateContractPDF = async (data: ContractData) => {
     '14.1. Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da Comarca de Caxias do Sul/RS, com renúncia a qualquer outro, por mais privilegiado que seja.'
   ]);
 
-  // --- DATE & SIGNATURES ---
-  checkPageBreak(50); // Check for enough space for date + one signature
+  checkPageBreak(50);
   y += 10;
-  doc.setFont('helvetica', 'normal');
   doc.text(`Caxias do Sul, RS, ${formatDateLong(data.vigencia.dataContrato)}.`, pageWidth / 2, y, { align: 'center' });
   y += 20;
 
@@ -167,28 +177,26 @@ export const generateContractPDF = async (data: ContractData) => {
   const signatureX = (pageWidth - signatureWidth) / 2;
 
   const addSignature = (signatureData: string, format: 'JPEG' | 'PNG', name: string, id: string) => {
-    // FIX: Handle both data URLs (from drawn signature) and raw base64 (from imported file)
     const base64Data = signatureData.includes(',') ? signatureData.split(',')[1] : signatureData;
     if (!base64Data) {
       console.error(`Invalid signature data for ${name}`);
       return;
     }
-
-    checkPageBreak(signatureHeight + 20); // Check space for the full signature block
+    checkPageBreak(signatureHeight + 20);
     doc.addImage(base64Data, format, signatureX, y, signatureWidth, signatureHeight);
     y += signatureHeight;
-    doc.line(margin + 30, y, pageWidth - margin - 30, y); // Draw line
+    doc.line(margin + 30, y, pageWidth - margin - 30, y);
     y += 5;
     doc.text(name, pageWidth / 2, y, { align: 'center' });
     y += 5;
     doc.text(id, pageWidth / 2, y, { align: 'center' });
-    y += 15; // Space after signature
+    y += 15;
   };
 
-  // Add the signatures
   if (data.assinaturas.contratado) {
-    addSignature(data.assinaturas.contratado, 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
+      addSignature(data.assinaturas.contratado, 'JPEG', data.contratado.nome, `CNPJ: ${data.contratado.cnpj}`);
   }
+  
   if (data.assinaturas.contratante) {
     addSignature(data.assinaturas.contratante, 'PNG', data.contratante.nome, `CPF: ${data.contratante.cpf}`);
   }
