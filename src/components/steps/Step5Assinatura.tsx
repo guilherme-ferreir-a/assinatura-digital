@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { ContractData } from '@/types/contract';
 import SignaturePad, { SignaturePadRef } from '@/components/SignaturePad';
-import { Pen, Check, RotateCcw, Smartphone, X, RotateCw } from 'lucide-react';
+import { Pen, Check, RotateCcw, Smartphone, X, RotateCw, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -77,9 +77,6 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
   const handleSignatureChange = (sig: string) => {
     updateSignature('contratante', sig);
     setHasSignature(!!sig);
-    if (!isMobile) {
-        onGeneratePDF();
-    }
   };
 
   const handleClear = () => signatureRefs.contratante.current?.clear();
@@ -87,7 +84,6 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
   const handleConfirmSignature = () => {
     if (hasSignature) {
       exitSigningMode();
-      onGeneratePDF();
     }
   };
 
@@ -131,13 +127,14 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
           <div className="p-4">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-heading font-bold text-primary">Assinatura do Contrato</h2>
-                <p className="text-muted-foreground mt-2">A assinatura é feita em tela cheia para melhor precisão.</p>
+                <p className="text-muted-foreground mt-2">A assinatura é o último passo para gerar seu contrato.</p>
               </div>
               {hasSignature ? (
                 <div className="form-section text-center">
                   <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center justify-center gap-2"><Check className="w-5 h-5 text-green-500" /> Assinatura Salva</h3>
                   <div className="bg-white border rounded-lg p-2 max-w-sm mx-auto"><img src={data.assinaturas.contratante} alt="Sua assinatura" className="max-h-24 mx-auto"/></div>
                   <Button onClick={enterSigningMode} variant="outline" className="w-full mt-4 max-w-sm mx-auto">Assinar Novamente</Button>
+                  <Button onClick={onGeneratePDF} className="w-full mt-4 max-w-sm mx-auto text-lg py-6"><FileDown className="w-5 h-5 mr-2" /> Gerar Contrato em PDF</Button>
                 </div>
               ) : (
                 <div className="form-section">
@@ -145,7 +142,7 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
                     <Smartphone className="w-6 h-6" />
                     <span>Toque para Assinar</span>
                   </Button>
-                  <p className="text-sm text-muted-foreground text-center mt-3">Seu celular ficará na horizontal.</p>
+                  <p className="text-sm text-muted-foreground text-center mt-3">Seu celular ficará na horizontal para a assinatura.</p>
                 </div>
               )}
           </div>
@@ -161,6 +158,11 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2"><Pen className="w-5 h-5 text-primary" />Assinatura do Contratante</h3>
           <p className="text-sm text-muted-foreground mb-4">{data.contratante.nome || 'Nome não informado'}</p>
           <SignaturePad ref={signatureRefs.contratante} label="Assine aqui com o mouse" onSignatureChange={handleSignatureChange} error={errors['assinaturas.contratante']} />
+          {hasSignature && (
+             <div className="mt-6 text-center">
+                <Button onClick={onGeneratePDF} size="lg" className="text-lg py-7"><FileDown className="w-5 h-5 mr-3" /> Gerar Contrato em PDF</Button>
+            </div>
+          )}
       </div>
     </div>
   );
