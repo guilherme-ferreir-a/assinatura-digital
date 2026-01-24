@@ -3,7 +3,6 @@ import { ContractData } from '@/types/contract';
 import { formatDate, formatDateLong } from './formatters';
 
 export const generateContractPDF = async (data: ContractData) => {
-  // Use A4 size and millimeters for units, a more standard approach for documents
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   // Document constants
@@ -36,11 +35,11 @@ export const generateContractPDF = async (data: ContractData) => {
   doc.setFontSize(FONT_SIZE);
   doc.setLineHeightFactor(1.5);
 
-  const addJustifiedText = (text: string) => {
+  const addWrappedText = (text: string) => {
     const splitText = doc.splitTextToSize(text, usableWidth);
     const textHeight = splitText.length * LINE_SPACING;
     checkPageBreak(textHeight);
-    doc.text(splitText, margin, y, { align: 'justify' });
+    doc.text(splitText, margin, y, { align: 'left' });
     y += textHeight;
   };
 
@@ -51,18 +50,18 @@ export const generateContractPDF = async (data: ContractData) => {
     doc.text(title, margin, y);
     y += LINE_SPACING;
     doc.setFont('helvetica', 'normal');
-    content.forEach(p => addJustifiedText(p));
+    content.forEach(p => addWrappedText(p));
   };
 
   // --- PARTIES ---
-  addJustifiedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`);
+  addWrappedText(`CONTRATADO: ${data.contratado.nome}, CNPJ nº ${data.contratado.cnpj}, endereço ${data.contratado.endereco}, telefone ${data.contratado.telefone}, e-mail ${data.contratado.email}.`);
   y += 5;
-  addJustifiedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`);
+  addWrappedText(`CONTRATANTE: ${data.contratante.nome}, CPF nº ${data.contratante.cpf}, endereço ${data.contratante.endereco}, telefone ${data.contratante.telefone}, e-mail ${data.contratante.email}.`);
   y += 5;
-  addJustifiedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
+  addWrappedText('As partes acima identificadas celebram o presente Contrato de Prestação de Serviços de Transporte Escolar, que será regido pelas cláusulas a seguir.');
 
-  // --- CLAUSES ---
-  addClause('CLÁUSULA 1 – DO OBJETO', [
+  // --- CLAUSES (Conteúdo omitido para brevidade) ---
+    addClause('CLÁUSULA 1 – DO OBJETO', [
     `1.1. O presente contrato tem por objeto a prestação de serviços de transporte escolar do aluno: Nome do aluno: ${data.aluno.nome}, Data de nascimento: ${formatDate(data.aluno.dataNascimento)}, Escola: ${data.aluno.escola}, Série/Turma: ${data.aluno.serieTurma}.`,
     `1.2. O transporte será realizado entre o endereço residencial do aluno, situado à ${data.aluno.enderecoResidencial}, e a escola acima indicada, bem como o trajeto de retorno, conforme regime contratado (${{
       'ida-volta': 'ida e volta',
@@ -168,9 +167,12 @@ export const generateContractPDF = async (data: ContractData) => {
   const signatureX = (pageWidth - signatureWidth) / 2;
 
   const addSignature = (signatureData: string, format: 'JPEG' | 'PNG', name: string, id: string) => {
-    // **THIS IS THE CRITICAL FIX**: Remove the base64 prefix before giving it to jsPDF
-    const base64Data = signatureData.split(',')[1];
-    if (!base64Data) return; // Don't try to add image if data is bad
+    // FIX: Handle both data URLs (from drawn signature) and raw base64 (from imported file)
+    const base64Data = signatureData.includes(',') ? signatureData.split(',')[1] : signatureData;
+    if (!base64Data) {
+      console.error(`Invalid signature data for ${name}`);
+      return;
+    }
 
     checkPageBreak(signatureHeight + 20); // Check space for the full signature block
     doc.addImage(base64Data, format, signatureX, y, signatureWidth, signatureHeight);
@@ -193,4 +195,3 @@ export const generateContractPDF = async (data: ContractData) => {
 
   doc.save(`Contrato-${data.contratante.nome.replace(/ /g, '_')}.pdf`);
 };
-
