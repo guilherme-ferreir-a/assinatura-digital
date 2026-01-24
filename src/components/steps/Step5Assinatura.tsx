@@ -77,6 +77,9 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
   const handleSignatureChange = (sig: string) => {
     updateSignature('contratante', sig);
     setHasSignature(!!sig);
+    if (!isMobile) {
+        onGeneratePDF();
+    }
   };
 
   const handleClear = () => signatureRefs.contratante.current?.clear();
@@ -84,6 +87,7 @@ const Step5Assinatura = ({ data, updateSignature, signatureRefs, errors, onGener
   const handleConfirmSignature = () => {
     if (hasSignature) {
       exitSigningMode();
+      onGeneratePDF();
     }
   };
 
